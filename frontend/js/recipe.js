@@ -1,109 +1,50 @@
-// ============================================
-// IMPORTS - Modules nécessaires
-// ============================================
-import { getOneRecipe, deletOneRecipe } from "./api.js"
-import { renderRecipeCard, renderSingleRecipe } from "./ui.js"
+import { getOneRecipe, deletOneRecipe } from "./api.js";
 
-const loadRecipe = async (recipeId) => {
-	try {
-		// Mock de recette pour test sans backend
-		// TODO: Supprimer cette ligne quand l'API sera fonctionnelle
-		const recipe = {
-			id: 1,
-			name: "Ratatouille Provençale",
-			cuisine: "Française",
-			difficulty: "Moyen",
-			prepTime: 45,
-			servings: 4,
-			ingredients: [
-				"2 aubergines",
-				"2 courgettes",
-				"2 poivrons rouges",
-				"4 tomates",
-				"1 oignon",
-				"3 gousses d'ail",
-				"Huile d'olive",
-				"Herbes de Provence",
-				"Sel et poivre",
-			],
-			instructions:
-				"Couper tous les légumes en dés. Faire revenir l'oignon et l'ail dans l'huile d'olive. Ajouter les aubergines, puis les courgettes, les poivrons et enfin les tomates. Assaisonner avec les herbes de Provence, sel et poivre. Laisser mijoter 30 minutes à feu doux.",
-			image:
-				"https://images.pexels.com/photos/5190684/pexels-photo-5190684.jpeg",
-		}
+document.addEventListener("DOMContentLoaded", async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const recipeId = urlParams.get("id");
 
-		// Appeler l'API pour récupérer la recette par son ID
-		//const recipe = await renderSingleRecipe(recipe)
-		// TODO: appeler renderSingleRecipe(recipe)
-		const recipeDetail = document.getElementById("recipe-detail")
+    if (!recipeId) {
+        window.location.href = "index.html";
+        return;
+    }
 
-		// Afficher la recette dans la grid
-		recipeDetail.innerHTML = renderSingleRecipe(recipe)
-	} catch (error) {
-		console.error("Erreur lors du chargement de la recette:", error.message)
-		alert(
-			"Impossible de charger la recette. Vérifiez que le serveur est demarré."
-		)
-	}
-}
+    try {
+        // 1. Récupérer la recette via l'API
+        const recipe = await getOneRecipe(recipeId);
 
-// ============================================
-// INITIALISATION DE L'APPLICATION
-// ============================================
-// Cette fonction est appelée automatiquement au chargement de la page
-// Elle charge et affiche toutes les recettes
+        // 2. Remplir le HTML (IDs basés sur ton fichier recipe.html)
+        document.getElementById("recipe-name").textContent = recipe.name;
+        document.getElementById("recipe-preptime").innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clock me-1" viewBox="0 0 16 16">
+                <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+            </svg> ${recipe.prepTime} min`;
+        
+        document.getElementById("recipe-id").textContent = recipe.id;
+        document.getElementById("recipe-instructions").textContent = recipe.instructions;
 
-const setupEventListeners = () => {
-	const loader = document.getElementById("loading-spinner")
-	const recipeDetail = document.getElementById("recipe-detail")
-	const deleteButton = document.getElementById("delete-recipe-btn")
+        const ingredientsContainer = document.getElementById("recipe-ingredients");
+        ingredientsContainer.innerHTML = recipe.ingredients
+            .map(ing => `<li class="mb-2"><span class="badge bg-primary rounded-pill me-2">•</span>${ing}</li>`)
+            .join("");
 
-	if (loader) {
-		loader.classList.add("d-none")
-	}
-	if (recipeDetail) {
-		recipeDetail.classList.remove("d-none")
-	}
+        // 3. Afficher la carte et cacher le chargement
+        document.getElementById("loading-spinner").classList.add("d-none");
+        document.getElementById("recipe-detail").classList.remove("d-none");
 
-	if (deleteButton) {
-		deleteButton.addEventListener("click", () => {
-			alert("Fonction de suppression non implémentée.")
-		})
-	}
-}
+        // 4. Logique de suppression
+        document.getElementById("delete-recipe-btn").addEventListener("click", async () => {
+            if (confirm("Supprimer cette recette ?")) {
+                await deletOneRecipe(recipeId);
+                window.location.href = "index.html";
+            }
+        });
 
-document.addEventListener("DOMContentLoaded", () => {
-	// receive recipe id from url
-	const urlParams = new URLSearchParams(window.location.search)
-	const recipeId = urlParams.get("id")
-	console.log("API recipeData:", recipeId)
-	loadRecipe(recipeId)
-	setupEventListeners()
-})
-
-// ============================================
-// AFFICHER LES RECETTES DANS LA GRID
-// ============================================
-// Fonction fournie - génère le HTML pour toutes les recettes
-
-const displaySingleRecipe = (recipe) => {
-	// Récupérer le conteneur où afficher les recettes
-	const recipesDetails = document.getElementById("recipe-detail")
-
-	// Vider le conteneur avant d'ajouter les nouvelles recettes
-	clearRecipesList(recipesDetails)
-
-	// Si il n'y a pas de recette, afficher un message
-	if (!recipe) {
-		recipesDetails.innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-info text-center" role="alert">
-                    Recette non-disponible. Veuillez revenir plus tard !
-                </div>
-            </div>
-        `
-		return
-	}
-
-	renderSingleRecipe(recipe)
-}
+    } catch (error) {
+        console.error(error);
+        document.getElementById("loading-spinner").classList.add("d-none");
+        document.getElementById("error-message").classList.remove("d-none");
+        document.getElementById("error-text").textContent = "Erreur de connexion au serveur.";
+    }
+});
